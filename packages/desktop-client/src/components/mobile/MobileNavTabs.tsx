@@ -35,6 +35,10 @@ const HIDDEN_Y = TOTAL_HEIGHT;
 
 export const MOBILE_NAV_HEIGHT = ROW_HEIGHT + PILL_HEIGHT;
 
+// Bottom padding for scrollable page content so the last row clears the nav bar
+// *and* the iOS home indicator. `env()` resolves to 0 outside of a native shell.
+export const MOBILE_NAV_CONTENT_PADDING = `calc(${MOBILE_NAV_HEIGHT}px + env(safe-area-inset-bottom))`;
+
 export function MobileNavTabs() {
   const { t } = useTranslation();
   const { isNarrowWidth } = useResponsive();
@@ -221,7 +225,8 @@ export function MobileNavTabs() {
         backgroundColor: theme.mobileNavBackground,
         borderTop: `1px solid ${theme.menuBorder}`,
         ...styles.shadow,
-        height: TOTAL_HEIGHT + PILL_HEIGHT,
+        height: `calc(${TOTAL_HEIGHT + PILL_HEIGHT}px + env(safe-area-inset-bottom))`,
+        paddingBottom: 'env(safe-area-inset-bottom)',
         width: '100%',
         position: 'fixed',
         zIndex: 100,
@@ -278,9 +283,14 @@ function NavTab({ Icon: TabIcon, name, path, style, onClick }: NavTabProps) {
       style={({ isActive }) => ({
         ...styles.noTapHighlight,
         alignItems: 'center',
+        justifyContent: 'center',
+        gap: 6,
         color: isActive ? theme.mobileNavItemSelected : theme.mobileNavItem,
         display: 'flex',
         flexDirection: 'column',
+        fontSize: 12,
+        fontWeight: isActive ? 600 : 500,
+        lineHeight: 1.2,
         textDecoration: 'none',
         textAlign: 'center',
         textWrap: 'balance',

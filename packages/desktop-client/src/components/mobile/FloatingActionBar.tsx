@@ -14,7 +14,8 @@ export function FloatingActionBar({ style, children }: FloatingActionBarProps) {
         backgroundColor: theme.floatingActionBarBackground,
         color: theme.floatingActionBarText,
         position: 'fixed',
-        bottom: 10,
+        // Keep the bar clear of the iOS home indicator.
+        bottom: 'calc(10px + env(safe-area-inset-bottom))',
         margin: '0 10px',
         width: '95vw',
         height: 60,

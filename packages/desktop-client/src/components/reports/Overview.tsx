@@ -22,7 +22,7 @@ import type {
   MarkdownWidget,
 } from '@actual-app/core/types/models';
 
-import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MOBILE_NAV_CONTENT_PADDING } from '#components/mobile/MobileNavTabs';
 import { MobilePageHeader, Page } from '#components/Page';
 import { useAccounts } from '#hooks/useAccounts';
 import {
@@ -761,7 +761,10 @@ export function Overview({ dashboard }: OverviewProps) {
           <View
             data-testid="reports-overview"
             innerRef={containerRef}
-            style={{ userSelect: 'none', paddingBottom: MOBILE_NAV_HEIGHT }}
+            style={{
+              userSelect: 'none',
+              paddingBottom: MOBILE_NAV_CONTENT_PADDING,
+            }}
           >
             {isMounted && (
               <ReactGridLayout

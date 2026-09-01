@@ -28,7 +28,7 @@ import { css } from '@emotion/css';
 import { useMoveAccountMutation, useSyncAndDownloadMutation } from '#accounts';
 import { isAccountFailedSync } from '#accounts/syncStatus';
 import { makeAmountFullStyle } from '#components/budget/util';
-import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MOBILE_NAV_CONTENT_PADDING } from '#components/mobile/MobileNavTabs';
 import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { MobilePageHeader, Page } from '#components/Page';
 import { CellValue, CellValueText } from '#components/spreadsheet/CellValue';
@@ -235,7 +235,7 @@ function EmptyMessage({ onAddAccount }: { onAddAccount: () => void }) {
   return (
     <View
       style={{
-        minHeight: `calc(100vh - ${MOBILE_NAV_HEIGHT}px - 140px)`,
+        minHeight: `calc(100vh - ${MOBILE_NAV_CONTENT_PADDING} - 140px)`,
         alignItems: 'center',
         justifyContent: 'center',
         padding: 30,
@@ -364,7 +364,7 @@ function AllAccountList({
         <PullToRefresh onRefresh={onSync}>
           <View
             aria-label={t('Account list')}
-            style={{ paddingBottom: MOBILE_NAV_HEIGHT }}
+            style={{ paddingBottom: MOBILE_NAV_CONTENT_PADDING }}
           >
             <AccountHeader
               id={ALL_ACCOUNTS_ID}

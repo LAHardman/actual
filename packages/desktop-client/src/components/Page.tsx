@@ -58,7 +58,10 @@ export function MobilePageHeader({
         alignItems: 'center',
         flexDirection: 'row',
         flexShrink: 0,
-        height: HEADER_HEIGHT,
+        // Grow into the status bar / notch so the header content stays clear of
+        // it. `env()` resolves to 0 outside of a native shell.
+        height: `calc(${HEADER_HEIGHT}px + env(safe-area-inset-top))`,
+        paddingTop: 'env(safe-area-inset-top)',
         backgroundColor: theme.mobileHeaderBackground,
         '& *': {
           color: theme.mobileHeaderText,
@@ -144,7 +147,7 @@ export function MobilePageHeaderSlot({ style }: MobilePageHeaderSlotProps) {
       ref={slotRef ?? undefined}
       style={{
         flexShrink: 0,
-        minHeight: HEADER_HEIGHT,
+        minHeight: `calc(${HEADER_HEIGHT}px + env(safe-area-inset-top))`,
         backgroundColor: theme.mobileHeaderBackground,
         ...style,
       }}
