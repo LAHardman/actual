@@ -7,7 +7,7 @@ import { theme } from '@actual-app/components/theme';
 import { View } from '@actual-app/components/view';
 import type { PayeeEntity } from '@actual-app/core/types/models';
 
-import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MOBILE_NAV_CONTENT_PADDING } from '#components/mobile/MobileNavTabs';
 
 import { PayeesListItem } from './PayeesListItem';
 
@@ -79,7 +79,7 @@ export function PayeesList({
           items={payees}
           style={{
             flex: 1,
-            paddingBottom: MOBILE_NAV_HEIGHT,
+            paddingBottom: MOBILE_NAV_CONTENT_PADDING,
             overflow: 'auto',
           }}
           dependencies={[ruleCounts, isRuleCountsLoading]}

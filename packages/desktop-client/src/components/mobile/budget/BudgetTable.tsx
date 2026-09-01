@@ -19,7 +19,7 @@ import type {
 } from '@actual-app/core/types/models';
 import { AutoTextSize } from 'auto-text-size';
 
-import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MOBILE_NAV_CONTENT_PADDING } from '#components/mobile/MobileNavTabs';
 import { PullToRefresh } from '#components/mobile/PullToRefresh';
 import { PrivacyFilter } from '#components/PrivacyFilter';
 import { CellValue } from '#components/spreadsheet/CellValue';
@@ -381,7 +381,7 @@ export function BudgetTable({
           style={{
             backgroundColor: theme.pageBackground,
             minHeight: '100vh',
-            paddingBottom: MOBILE_NAV_HEIGHT,
+            paddingBottom: MOBILE_NAV_CONTENT_PADDING,
           }}
         >
           <SchedulesProvider query={schedulesQuery}>

@@ -9,7 +9,7 @@ import type { ScheduleStatusType } from '@actual-app/core/shared/schedules';
 import type { ScheduleEntity } from '@actual-app/core/types/models';
 
 import { ActionableGridListItem } from '#components/mobile/ActionableGridListItem';
-import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MOBILE_NAV_CONTENT_PADDING } from '#components/mobile/MobileNavTabs';
 
 import { SchedulesListItem } from './SchedulesListItem';
 
@@ -99,7 +99,7 @@ export function SchedulesList({
           aria-busy={isLoading || undefined}
           items={listItems}
           style={{
-            paddingBottom: MOBILE_NAV_HEIGHT,
+            paddingBottom: MOBILE_NAV_CONTENT_PADDING,
           }}
         >
           {item =>

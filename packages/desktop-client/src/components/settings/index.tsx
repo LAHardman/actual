@@ -17,7 +17,7 @@ import { getLatestAppVersion } from '#app/appSlice';
 import { closeBudget } from '#budgetfiles/budgetfilesSlice';
 import { Link } from '#components/common/Link';
 import { Checkbox, FormField, FormLabel } from '#components/forms';
-import { MOBILE_NAV_HEIGHT } from '#components/mobile/MobileNavTabs';
+import { MOBILE_NAV_CONTENT_PADDING } from '#components/mobile/MobileNavTabs';
 import { Page } from '#components/Page';
 import { useServerVersion } from '#components/ServerContext';
 import { useFeatureFlag } from '#hooks/useFeatureFlag';
@@ -208,7 +208,7 @@ export function Settings() {
           maxWidth: 530,
           width: '100%',
           gap: 30,
-          paddingBottom: MOBILE_NAV_HEIGHT,
+          paddingBottom: MOBILE_NAV_CONTENT_PADDING,
         }}
       >
         {isNarrowWidth && (
