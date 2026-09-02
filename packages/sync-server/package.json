@@ -1,6 +1,6 @@
 {
   "name": "@actual-app/sync-server",
-  "version": "26.8.1",
+  "version": "26.9.0",
   "description": "actual syncing server",
   "license": "MIT",
   "repository": {
@@ -90,6 +90,7 @@
   "dependencies": {
     "@actual-app/crdt": "workspace:*",
     "@actual-app/web": "workspace:*",
+    "@simplewebauthn/server": "^13.3.3",
     "akahu": "^2.5.1",
     "argon2": "^0.44.0",
     "bcrypt": "^6.0.0",

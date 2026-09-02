@@ -14,6 +14,7 @@ import * as corsApp from './app-cors-proxy';
 import * as enableBankingApp from './app-enablebanking/app-enablebanking';
 import * as goCardlessApp from './app-gocardless/app-gocardless';
 import * as openidApp from './app-openid';
+import * as passkeyApp from './app-passkey';
 import * as pluggai from './app-pluggyai/app-pluggyai';
 import * as secretApp from './app-secrets';
 import * as simpleFinApp from './app-simplefin/app-simplefin';
@@ -71,6 +72,7 @@ if (config.get('corsProxy.enabled')) {
 
 app.use('/admin', adminApp.handlers);
 app.use('/openid', openidApp.handlers);
+app.use('/passkey', passkeyApp.handlers);
 
 app.get('/mode', (req, res) => {
   res.send(config.get('mode'));
@@ -198,6 +200,22 @@ export async function run() {
   const portVal = config.get('port');
   const port = typeof portVal === 'string' ? parseInt(portVal) : portVal;
   const hostname = config.get('hostname');
+
+  const passkeyConfig = config?.getProperties()?.passkey;
+  if (passkeyConfig?.server_hostname) {
+    console.log('Passkey configuration found. Preparing server to use it');
+    try {
+      const result = await bootstrap({ passkey: passkeyConfig }, true);
+      if ('error' in result && result.error) {
+        console.log(result.error);
+      } else {
+        console.log('Passkeys configured!');
+      }
+    } catch (err) {
+      console.error(err);
+    }
+  }
+
   const openIdConfig = config?.getProperties()?.openId;
   if (
     openIdConfig?.discoveryURL ||

@@ -259,3 +259,10 @@ export function getOpenIDConfig() {
     null
   );
 }
+
+export function getPasskeyConfig() {
+  return (
+    getAccountDb().first(`SELECT * FROM auth WHERE method = ?`, ['passkey']) ||
+    null
+  );
+}

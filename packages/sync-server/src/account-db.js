@@ -1,6 +1,7 @@
 import { join, resolve } from 'node:path';
 
 import { bootstrapOpenId } from './accounts/openid';
+import { bootstrapPasskey, resetPasskeys } from './accounts/passkey';
 import {
   bootstrapPassword,
   hashPassword,
@@ -29,15 +30,23 @@ export function needsBootstrap() {
   return rows.length === 0;
 }
 
+/** Methods that authenticate named users, and therefore unlock multi-user mode. */
+const MULTIUSER_METHODS = ['openid', 'passkey'];
+
+export function isMultiuserMethod(method) {
+  return MULTIUSER_METHODS.includes(method);
+}
+
 export function listLoginMethods() {
   const accountDb = getAccountDb();
   const rows = accountDb.all('SELECT method, display_name, active FROM auth');
   return rows
-    .filter(f =>
-      rows.length > 1 && config.get('enforceOpenId')
-        ? f.method === 'openid'
-        : true,
-    )
+    .filter(f => {
+      if (rows.length <= 1) return true;
+      if (config.get('enforceOpenId')) return f.method === 'openid';
+      if (config.get('passkey.enforce')) return f.method === 'passkey';
+      return true;
+    })
     .map(r => ({
       method: r.method,
       active: r.active,
@@ -89,6 +98,8 @@ export async function bootstrap(loginSettings, forced = false) {
   }
   const passEnabled = 'password' in loginSettings;
   const openIdEnabled = 'openId' in loginSettings;
+  const passkeyEnabled = 'passkey' in loginSettings;
+  const namedUserMethodEnabled = openIdEnabled || passkeyEnabled;
 
   const accountDb = getAccountDb();
 
@@ -109,19 +120,22 @@ export async function bootstrap(loginSettings, forced = false) {
    WHERE users.user_name <> '' and users.owner = 1`,
       ) || {};
 
-    if (!forced && (!openIdEnabled || countOfOwner > 0)) {
+    if (!forced && (!namedUserMethodEnabled || countOfOwner > 0)) {
       if (!needsBootstrap()) {
         accountDb.mutate('ROLLBACK');
         return { error: 'already-bootstrapped' };
       }
     }
 
-    if (!passEnabled && !openIdEnabled) {
+    if (!passEnabled && !namedUserMethodEnabled) {
       accountDb.mutate('ROLLBACK');
       return { error: 'no-auth-method-selected' };
     }
 
-    if (passEnabled && openIdEnabled && !forced) {
+    const methodsSelected = [passEnabled, openIdEnabled, passkeyEnabled].filter(
+      Boolean,
+    ).length;
+    if (methodsSelected > 1 && !forced) {
       accountDb.mutate('ROLLBACK');
       return { error: 'max-one-method-allowed' };
     }
@@ -132,6 +146,14 @@ export async function bootstrap(loginSettings, forced = false) {
 
     if (openIdEnabled && forced) {
       const { error } = await bootstrapOpenId(loginSettings.openId);
+      if (error) {
+        accountDb.mutate('ROLLBACK');
+        return { error };
+      }
+    }
+
+    if (passkeyEnabled && forced) {
+      const { error } = await bootstrapPasskey(loginSettings.passkey);
       if (error) {
         accountDb.mutate('ROLLBACK');
         return { error };
@@ -199,21 +221,81 @@ export async function disableOpenID(loginSettings) {
 
   try {
     accountDb.transaction(() => {
-      accountDb.mutate('DELETE FROM sessions');
-      accountDb.mutate(
-        `DELETE FROM user_access
-                              WHERE user_access.user_id IN (
-                                  SELECT users.id
-                                  FROM users
-                                  WHERE users.user_name <> ?
-                              );`,
-        [''],
-      );
-      accountDb.mutate('DELETE FROM users WHERE user_name <> ?', ['']);
+      resetToSingleUser();
       accountDb.mutate('DELETE FROM auth WHERE method = ?', ['openid']);
     });
   } catch (err) {
     console.error('Error cleaning up openid information:', err);
+    return { error: 'database-error' };
+  }
+}
+
+/**
+ * Back to the password-only world: one anonymous user, no sessions. Shared by
+ * every named-user method's disable path so they stay in step.
+ */
+function resetToSingleUser() {
+  const accountDb = getAccountDb();
+  accountDb.mutate('DELETE FROM sessions');
+  accountDb.mutate(
+    `DELETE FROM user_access
+                          WHERE user_access.user_id IN (
+                              SELECT users.id
+                              FROM users
+                              WHERE users.user_name <> ?
+                          );`,
+    [''],
+  );
+  accountDb.mutate('DELETE FROM users WHERE user_name <> ?', ['']);
+}
+
+export async function enablePasskey(loginSettings) {
+  if (!loginSettings || !loginSettings.passkey) {
+    return { error: 'invalid-login-settings' };
+  }
+
+  const { error } = (await bootstrapPasskey(loginSettings.passkey)) || {};
+  if (error) {
+    return { error };
+  }
+
+  getAccountDb().mutate('DELETE FROM sessions');
+}
+
+export async function disablePasskey(loginSettings) {
+  if (!loginSettings || !loginSettings.password) {
+    return { error: 'invalid-login-settings' };
+  }
+
+  const accountDb = getAccountDb();
+  const { extra_data: passwordHash } =
+    accountDb.first('SELECT extra_data FROM auth WHERE method = ?', [
+      'password',
+    ]) || {};
+
+  if (!passwordHash) {
+    return { error: 'invalid-password' };
+  }
+
+  const confirmed = await verifyPassword(loginSettings.password, passwordHash);
+  if (!confirmed) {
+    return { error: 'invalid-password' };
+  }
+
+  const { error } = await bootstrapPassword(loginSettings.password);
+  if (error) {
+    return { error };
+  }
+
+  try {
+    accountDb.transaction(() => {
+      // Credentials reference users, so they go before the users do.
+      resetPasskeys();
+      resetToSingleUser();
+      accountDb.mutate('DELETE FROM auth WHERE method = ?', ['passkey']);
+    });
+  } catch (err) {
+    console.error('Error cleaning up passkey information:', err);
     return { error: 'database-error' };
   }
 }

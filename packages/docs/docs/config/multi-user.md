@@ -2,7 +2,7 @@
 
 :::caution
 
-This feature requires you to have set up an [OpenID Provider](./oauth-auth.md). The usernames which people will log into your Actual instance will be fetched from the provider.
+This feature requires a login method that identifies each person: either an [OpenID Provider](./oauth-auth.md), where usernames come from the provider, or [passkeys](./passkeys.md), where the sync server manages the accounts itself.
 
 :::
 

@@ -8,6 +8,7 @@ import {
   getServerPrefs,
   getUserInfo,
   isAdmin,
+  isMultiuserMethod,
   listLoginMethods,
   needsBootstrap,
   setServerPrefs,
@@ -51,7 +52,7 @@ app.get('/needs-bootstrap', (req, res) => {
           ? availableLoginMethods[0].method
           : getLoginMethod(),
       availableLoginMethods,
-      multiuser: getActiveLoginMethod() === 'openid',
+      multiuser: isMultiuserMethod(getActiveLoginMethod()),
     },
   });
 });
@@ -111,6 +112,13 @@ app.post('/login', authRateLimiter, async (req, res) => {
         return;
       }
       res.send({ status: 'ok', data: { returnUrl: url } });
+      return;
+    }
+
+    case 'passkey': {
+      // A passkey sign-in is a two-step ceremony (options, then verify) and
+      // does not fit a one-shot login endpoint. Point the client at it.
+      res.status(400).send({ status: 'error', reason: 'use-passkey-ceremony' });
       return;
     }
 
