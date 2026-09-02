@@ -120,14 +120,14 @@ const configSchema = convict({
   },
   loginMethod: {
     doc: 'Authentication method.',
-    format: ['password', 'header', 'openid'],
+    format: ['password', 'header', 'openid', 'passkey'],
     default: 'password',
     env: 'ACTUAL_LOGIN_METHOD',
   },
   allowedLoginMethods: {
     doc: 'Allowed authentication methods.',
     format: Array,
-    default: ['password', 'header', 'openid'],
+    default: ['password', 'header', 'openid', 'passkey'],
     env: 'ACTUAL_ALLOWED_LOGIN_METHODS',
   },
   trustedProxies: {
@@ -252,6 +252,35 @@ const configSchema = convict({
       format: ['openid', 'oauth2'],
       default: 'openid',
       env: 'ACTUAL_OPENID_AUTH_METHOD',
+    },
+  },
+
+  passkey: {
+    doc: 'Passkey (WebAuthn) authentication settings.',
+
+    rpName: {
+      doc: 'Name the authenticator shows when creating a passkey.',
+      format: String,
+      default: 'Actual Budget',
+      env: 'ACTUAL_PASSKEY_RP_NAME',
+    },
+    server_hostname: {
+      doc: 'Public URL of this server. Its hostname becomes the relying party ID that passkeys are bound to.',
+      format: String,
+      default: '',
+      env: 'ACTUAL_PASSKEY_SERVER_HOSTNAME',
+    },
+    extraOrigins: {
+      doc: 'Additional origins allowed to complete passkey ceremonies, such as a native app.',
+      format: Array,
+      default: [],
+      env: 'ACTUAL_PASSKEY_EXTRA_ORIGINS',
+    },
+    enforce: {
+      doc: 'Forces passkey authentication as the only allowed login method.',
+      format: Boolean,
+      default: false,
+      env: 'ACTUAL_PASSKEY_ENFORCE',
     },
   },
 
