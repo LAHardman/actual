@@ -35,6 +35,17 @@ export type PasskeyConfigParameter = {
   extraOrigins?: string[];
 };
 
+/**
+ * A native Android app proves it may use this server's passkeys by hosting a
+ * Digital Asset Links file here, and by presenting an origin derived from its
+ * signing certificate. Both come from configuration; neither is inferred.
+ */
+export type AndroidAppLink = {
+  packageName: string;
+  /** Colon-separated uppercase hex, as `keytool` and Play Console print it. */
+  certFingerprints: string[];
+};
+
 export type PasskeyConfig = {
   server_hostname: string;
   rpName: string;
@@ -158,6 +169,9 @@ export async function bootstrapPasskey(
     server_hostname: serverHostname,
     rpName: configParameter.rpName?.trim() || 'Actual Budget',
     rpId: relyingParty.rpId,
+    // The Android origin is added from config at verification time rather than
+    // frozen here, so changing the app's signing key does not mean
+    // reconfiguring passkeys.
     origins: relyingParty.origins,
   };
 
@@ -199,6 +213,82 @@ export function getPasskeyConfig(): PasskeyConfig | null {
 
 export function getPasskeyServerHostname(): string | null {
   return getPasskeyConfig()?.server_hostname ?? null;
+}
+
+// ----------------------------------------------------------- android app link
+
+export function getAndroidAppLink(): AndroidAppLink | null {
+  const packageName = (config.get('passkey.androidPackage') as string)?.trim();
+  const fingerprints = (
+    (config.get('passkey.androidCertFingerprints') as string[]) ?? []
+  )
+    .map(value => normaliseFingerprint(value))
+    .filter((value): value is string => value !== null);
+
+  if (!packageName || fingerprints.length === 0) {
+    return null;
+  }
+  return { packageName, certFingerprints: fingerprints };
+}
+
+/**
+ * The Digital Asset Links statement list. Android fetches this over https and
+ * only then lets the named app act for this domain's credentials.
+ */
+export function getAssetLinks(): unknown[] {
+  const appLink = getAndroidAppLink();
+  if (!appLink) {
+    return [];
+  }
+  return [
+    {
+      relation: ['delegate_permission/common.get_login_creds'],
+      target: {
+        namespace: 'android_app',
+        package_name: appLink.packageName,
+        sha256_cert_fingerprints: appLink.certFingerprints,
+      },
+    },
+  ];
+}
+
+/**
+ * The origin a native Android app presents during a ceremony. It is the
+ * base64url of the raw certificate digest, not the hex `keytool` prints, so
+ * the two representations are converted here rather than asked of the user.
+ */
+export function androidOriginsFromConfig(): string[] {
+  const appLink = getAndroidAppLink();
+  if (!appLink) {
+    return [];
+  }
+  return appLink.certFingerprints.map(fingerprint => {
+    const bytes = Buffer.from(fingerprint.split(':').join(''), 'hex');
+    return `android:apk-key-hash:${bytes.toString('base64url')}`;
+  });
+}
+
+/**
+ * Origins allowed to complete a ceremony: the web origins stored when passkeys
+ * were configured, plus any native Android app currently named in config.
+ */
+function expectedOrigins(passkeyConfig: PasskeyConfig): string[] {
+  return [...passkeyConfig.origins, ...androidOriginsFromConfig()];
+}
+
+/** Accepts hex with or without colons, in any case; rejects anything else. */
+function normaliseFingerprint(value: string): string | null {
+  const hex = value.trim().replace(/:/g, '').toUpperCase();
+  if (!/^[0-9A-F]{64}$/.test(hex)) {
+    if (value.trim() !== '') {
+      console.error(
+        'Ignoring an Android certificate fingerprint that is not 32 bytes of hex:',
+        value,
+      );
+    }
+    return null;
+  }
+  return (hex.match(/.{2}/g) ?? []).join(':');
 }
 
 /** Everything the passkey method owns, apart from the auth row itself. */
@@ -297,7 +387,7 @@ export async function verifyRegistration(input: {
     verification = await verifyRegistrationResponse({
       response: input.response,
       expectedChallenge: challenge.challenge,
-      expectedOrigin: passkeyConfig.origins,
+      expectedOrigin: expectedOrigins(passkeyConfig),
       expectedRPID: passkeyConfig.rpId,
       requireUserVerification: true,
     });
@@ -554,7 +644,7 @@ export async function verifyAuthentication(input: {
     verification = await verifyAuthenticationResponse({
       response: input.response,
       expectedChallenge: challenge.challenge,
-      expectedOrigin: passkeyConfig.origins,
+      expectedOrigin: expectedOrigins(passkeyConfig),
       expectedRPID: passkeyConfig.rpId,
       requireUserVerification: true,
       credential: {

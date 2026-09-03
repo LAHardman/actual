@@ -282,6 +282,18 @@ const configSchema = convict({
       default: false,
       env: 'ACTUAL_PASSKEY_ENFORCE',
     },
+    androidPackage: {
+      doc: 'Android application ID allowed to use passkeys for this server. Published in /.well-known/assetlinks.json.',
+      format: String,
+      default: '',
+      env: 'ACTUAL_PASSKEY_ANDROID_PACKAGE',
+    },
+    androidCertFingerprints: {
+      doc: "SHA-256 fingerprints of the Android app's signing certificate, colon-separated hex, comma-separated for several.",
+      format: Array,
+      default: [],
+      env: 'ACTUAL_PASSKEY_ANDROID_CERT_FINGERPRINTS',
+    },
   },
 
   token_expiration: {

@@ -7,10 +7,15 @@ import request from 'supertest';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { getAccountDb } from './account-db';
-import { bootstrapPasskey } from './accounts/passkey';
+import {
+  androidOriginsFromConfig,
+  bootstrapPasskey,
+  getAssetLinks,
+} from './accounts/passkey';
 import { bootstrapPassword } from './accounts/password';
 import { authRateLimiter } from './app-account';
 import { handlers as app } from './app-passkey';
+import { config } from './load-config';
 
 // The ceremony verifiers need a real authenticator to produce input for.
 // Everything around them (challenges, users, credentials, sessions, tokens)
@@ -349,6 +354,113 @@ describe('first registration (bootstrap)', () => {
       .send({ password: SERVER_PASSWORD, userName: 'Luke' });
     expect(res.statusCode).toBe(400);
     expect(res.body.reason).toBe('already-bootstrapped');
+  });
+});
+
+/** convict infers never[] from the empty default, so widen at the call site. */
+function setFingerprints(values: string[]) {
+  (config.set as (name: string, value: unknown) => void)(
+    'passkey.androidCertFingerprints',
+    values,
+  );
+}
+
+describe('android app link', () => {
+  const ORIGINAL_PACKAGE = config.get('passkey.androidPackage');
+  const ORIGINAL_FINGERPRINTS = config.get('passkey.androidCertFingerprints');
+
+  afterEach(() => {
+    config.set('passkey.androidPackage', ORIGINAL_PACKAGE);
+    setFingerprints(ORIGINAL_FINGERPRINTS as string[]);
+  });
+
+  it('publishes nothing until a package and a fingerprint are configured', () => {
+    config.set('passkey.androidPackage', '');
+    setFingerprints([]);
+    expect(getAssetLinks()).toEqual([]);
+    expect(androidOriginsFromConfig()).toEqual([]);
+
+    // A package without a fingerprint would authorise nothing, so it is not
+    // published either.
+    config.set('passkey.androidPackage', 'org.actualbudget');
+    expect(getAssetLinks()).toEqual([]);
+  });
+
+  it('publishes a statement Android can verify', () => {
+    config.set('passkey.androidPackage', 'org.actualbudget');
+    setFingerprints([
+      '5D:8A:B2:8B:2D:9F:79:B5:F1:88:83:79:08:9E:D9:18:F9:A5:E7:48:F6:69:5B:EE:BC:D1:04:25:59:96:CB:89',
+    ]);
+
+    expect(getAssetLinks()).toEqual([
+      {
+        relation: ['delegate_permission/common.get_login_creds'],
+        target: {
+          namespace: 'android_app',
+          package_name: 'org.actualbudget',
+          sha256_cert_fingerprints: [
+            '5D:8A:B2:8B:2D:9F:79:B5:F1:88:83:79:08:9E:D9:18:F9:A5:E7:48:F6:69:5B:EE:BC:D1:04:25:59:96:CB:89',
+          ],
+        },
+      },
+    ]);
+  });
+
+  it('accepts a fingerprint written without colons or in lower case', () => {
+    config.set('passkey.androidPackage', 'org.actualbudget');
+    setFingerprints([
+      '5d8ab28b2d9f79b5f1888379089ed918f9a5e748f6695beebcd104255996cb89',
+    ]);
+    expect(
+      (getAssetLinks()[0] as { target: { sha256_cert_fingerprints: string[] } })
+        .target.sha256_cert_fingerprints[0],
+    ).toBe(
+      '5D:8A:B2:8B:2D:9F:79:B5:F1:88:83:79:08:9E:D9:18:F9:A5:E7:48:F6:69:5B:EE:BC:D1:04:25:59:96:CB:89',
+    );
+  });
+
+  it('ignores a fingerprint that is not 32 bytes of hex', () => {
+    config.set('passkey.androidPackage', 'org.actualbudget');
+    setFingerprints(['not-a-fingerprint']);
+    expect(getAssetLinks()).toEqual([]);
+  });
+
+  // The app presents the base64url of the raw digest, not the hex a person
+  // reads off keytool, so the server converts rather than asking for both.
+  it('derives the origin the app actually presents', () => {
+    config.set('passkey.androidPackage', 'org.actualbudget');
+    setFingerprints([
+      '5D:8A:B2:8B:2D:9F:79:B5:F1:88:83:79:08:9E:D9:18:F9:A5:E7:48:F6:69:5B:EE:BC:D1:04:25:59:96:CB:89',
+    ]);
+    expect(androidOriginsFromConfig()).toEqual([
+      'android:apk-key-hash:XYqyiy2febXxiIN5CJ7ZGPml50j2aVvuvNEEJVmWy4k',
+    ]);
+  });
+
+  it('lets the app complete a ceremony, alongside the web origin', async () => {
+    config.set('passkey.androidPackage', 'org.actualbudget');
+    setFingerprints([
+      '5D:8A:B2:8B:2D:9F:79:B5:F1:88:83:79:08:9E:D9:18:F9:A5:E7:48:F6:69:5B:EE:BC:D1:04:25:59:96:CB:89',
+    ]);
+    insertCredential('cred-android', 'genericUser');
+    const { challengeId } = (await request(app).post('/login/options').send({}))
+      .body.data;
+    mockedVerifyAuthentication.mockResolvedValueOnce(
+      authenticationVerified('cred-android', 1),
+    );
+
+    await request(app)
+      .post('/login/verify')
+      .send({ challengeId, response: fakeResponse('cred-android') });
+
+    expect(mockedVerifyAuthentication).toHaveBeenCalledWith(
+      expect.objectContaining({
+        expectedOrigin: [
+          SERVER,
+          'android:apk-key-hash:XYqyiy2febXxiIN5CJ7ZGPml50j2aVvuvNEEJVmWy4k',
+        ],
+      }),
+    );
   });
 });
 

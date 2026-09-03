@@ -1,4 +1,7 @@
-import type { PasskeyCeremonyOptions } from '@actual-app/core/types/models';
+import type {
+  PasskeyCeremonyOptions,
+  PasskeyCeremonyResponse,
+} from '@actual-app/core/types/models';
 import {
   browserSupportsWebAuthn,
   startAuthentication,
@@ -12,17 +15,29 @@ import type {
   RegistrationResponseJSON,
 } from '@simplewebauthn/browser';
 
+import { hasPasskeyBridge, runBridgeCeremony } from './passkey-bridge';
+
 // The browser half of a passkey ceremony. loot-core runs in a worker and only
 // relays JSON; the WebAuthn call itself has to happen here, in the window,
 // in response to a click.
+//
+// Actual's Android shell embeds a browser engine that Android will not let
+// call WebAuthn for a website, so it offers a native bridge instead. Where one
+// is present it is used, because navigator.credentials would simply fail.
 
 export function passkeysSupported(): boolean {
-  return browserSupportsWebAuthn();
+  return hasPasskeyBridge() || browserSupportsWebAuthn();
 }
 
 export async function createPasskey(
   options: PasskeyCeremonyOptions,
-): Promise<{ response: RegistrationResponseJSON } | { error: string }> {
+): Promise<
+  | { response: RegistrationResponseJSON | PasskeyCeremonyResponse }
+  | { error: string }
+> {
+  if (hasPasskeyBridge()) {
+    return runBridgeCeremony('create', options);
+  }
   try {
     const response = await startRegistration({
       optionsJSON: options as unknown as PublicKeyCredentialCreationOptionsJSON,
@@ -35,7 +50,13 @@ export async function createPasskey(
 
 export async function authenticateWithPasskey(
   options: PasskeyCeremonyOptions,
-): Promise<{ response: AuthenticationResponseJSON } | { error: string }> {
+): Promise<
+  | { response: AuthenticationResponseJSON | PasskeyCeremonyResponse }
+  | { error: string }
+> {
+  if (hasPasskeyBridge()) {
+    return runBridgeCeremony('get', options);
+  }
   try {
     const response = await startAuthentication({
       optionsJSON: options as unknown as PublicKeyCredentialRequestOptionsJSON,

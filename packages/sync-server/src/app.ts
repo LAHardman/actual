@@ -7,6 +7,7 @@ import express from 'express';
 import rateLimit from 'express-rate-limit';
 
 import { bootstrap } from './account-db';
+import { getAssetLinks } from './accounts/passkey';
 import * as accountApp from './app-account';
 import * as adminApp from './app-admin';
 import * as akahuApp from './app-akahu/app-akahu.js';
@@ -76,6 +77,13 @@ app.use('/passkey', passkeyApp.handlers);
 
 app.get('/mode', (req, res) => {
   res.send(config.get('mode'));
+});
+
+// Digital Asset Links. Android fetches this over https before it will let the
+// named app use passkeys for this domain, so it has to be served from the
+// domain itself, ahead of the SPA catch-all, as application/json.
+app.get('/.well-known/assetlinks.json', (req, res) => {
+  res.type('application/json').send(JSON.stringify(getAssetLinks()));
 });
 
 app.get('/info', (_req, res) => {

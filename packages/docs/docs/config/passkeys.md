@@ -86,4 +86,23 @@ The same settings can go in `config.json` under a `passkey` key, using `server_h
 
 Passkeys work in current versions of Firefox, Chrome, Edge and Safari, on phones and desktops, whenever the site is served over `https://`.
 
-They do not work inside every app that embeds a web view. In particular, an Android app that embeds a browser engine cannot create or use passkeys for a website unless Android recognises it as a browser, so a custom wrapper app will fail where Firefox for Android on the same phone succeeds. The desktop app may also be unable to use passkeys on some platforms; sign in through a browser there, or keep another login method available.
+They do not work inside every app that embeds a web view. An Android app that embeds a browser engine cannot create or use passkeys for a website unless Android recognises it as a browser, so a wrapper app will fail where Firefox for Android on the same phone succeeds, unless it uses the native path described below. The desktop app may also be unable to use passkeys on some platforms; sign in through a browser there, or keep another login method available.
+
+## Allowing a Native Android App
+
+A native Android app can do passkeys for your server without being a browser, by authenticating as itself. Android only permits this when your server vouches for the app, which takes two settings:
+
+- `ACTUAL_PASSKEY_ANDROID_PACKAGE`: the app's application ID, for example `org.actualbudget`.
+- `ACTUAL_PASSKEY_ANDROID_CERT_FINGERPRINTS`: the SHA-256 fingerprint of the certificate the app is signed with, comma separated if there is more than one. Colons are optional and the case does not matter.
+
+With both set, the server publishes `/.well-known/assetlinks.json`, which Android fetches before it will let the app hold credentials for your domain, and accepts the app's own origin during a ceremony.
+
+Get the fingerprint from the APK:
+
+```bash
+apksigner verify --print-certs app-release.apk
+```
+
+:::warning
+The fingerprint identifies the signing key, not the app. If the app is rebuilt with a different key — which happens by default when a build system generates a throwaway debug key each time — every passkey created through it stops working. Sign the app with the same key every build before you rely on this.
+:::
