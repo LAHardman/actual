@@ -19,6 +19,7 @@ import {
 } from '#components/manager/subscribe/ConfirmPasswordForm';
 import {
   useAvailableLoginMethods,
+  useLoginMethod,
   useMultiuserEnabled,
   useRefreshLoginMethods,
 } from '#components/ServerContext';
@@ -41,13 +42,19 @@ export function PasswordEnableModal({
   const multiuserEnabled = useMultiuserEnabled();
   const availableLoginMethods = useAvailableLoginMethods();
   const refreshLoginMethods = useRefreshLoginMethods();
+  const loginMethod = useLoginMethod();
+
+  // The same modal reverts either named-user method to the server password.
+  const from = loginMethod === 'passkey' ? 'passkey' : 'openid';
+  const methodLabel = from === 'passkey' ? t('passkeys') : t('OpenID');
 
   const errorMessages = {
     'invalid-password': t('Invalid password'),
     'password-match': t('Passwords do not match'),
     'network-failure': t('Unable to contact the server'),
     'unable-to-change-file-config-enabled': t(
-      'Unable to disable OpenID. Please update the config.json file in this case.',
+      'Unable to disable {{method}}. Please update the config.json file in this case.',
+      { method: methodLabel },
     ),
   };
 
@@ -59,7 +66,7 @@ export function PasswordEnableModal({
 
   async function onSetPassword(password: string) {
     setError(null);
-    const { error } = (await send('enable-password', { password })) || {};
+    const { error } = (await send('enable-password', { password, from })) || {};
     if (!error) {
       originalOnSave?.();
       await refreshLoginMethods();
@@ -121,7 +128,9 @@ export function PasswordEnableModal({
                 color: theme.pageTextLight,
                 paddingTop: 5,
               }}
-              title={t('Type the server password to disable OpenID')}
+              title={t('Type the server password to disable {{method}}', {
+                method: methodLabel,
+              })}
             />
             <Label
               style={{
@@ -129,7 +138,12 @@ export function PasswordEnableModal({
                 color: theme.pageTextLight,
                 paddingTop: 5,
               }}
-              title={t('After disabling OpenID all sessions will be closed')}
+              title={t(
+                'After disabling {{method}} all sessions will be closed',
+                {
+                  method: methodLabel,
+                },
+              )}
             />
             {multiuserEnabled && (
               <Label

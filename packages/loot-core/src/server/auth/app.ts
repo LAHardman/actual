@@ -5,7 +5,14 @@ import * as encryption from '#server/encryption';
 import { PostError } from '#server/errors';
 import { get, post } from '#server/post';
 import { getServer, isValidBaseURL } from '#server/server-config';
-import type { OpenIdConfig } from '#types/models';
+import type {
+  OpenIdConfig,
+  PasskeyCeremonyOptions,
+  PasskeyCeremonyResponse,
+  PasskeyConfig,
+  PasskeyCredentialSummary,
+  PasskeyRegistrationSubject,
+} from '#types/models';
 
 export type AuthHandlers = {
   'get-did-bootstrap': typeof didBootstrap;
@@ -20,6 +27,15 @@ export type AuthHandlers = {
   'enable-openid': typeof enableOpenId;
   'get-openid-config': typeof getOpenIdConfig;
   'enable-password': typeof enablePassword;
+  'enable-passkey': typeof enablePasskey;
+  'passkey-register-options': typeof passkeyRegisterOptions;
+  'passkey-register-verify': typeof passkeyRegisterVerify;
+  'passkey-login-options': typeof passkeyLoginOptions;
+  'passkey-login-verify': typeof passkeyLoginVerify;
+  'passkey-list': typeof passkeyList;
+  'passkey-rename': typeof passkeyRename;
+  'passkey-delete': typeof passkeyDelete;
+  'passkey-invite': typeof passkeyInvite;
 };
 
 export const app = createApp<AuthHandlers>();
@@ -35,6 +51,15 @@ app.method('subscribe-set-token', setToken);
 app.method('enable-openid', enableOpenId);
 app.method('get-openid-config', getOpenIdConfig);
 app.method('enable-password', enablePassword);
+app.method('enable-passkey', enablePasskey);
+app.method('passkey-register-options', passkeyRegisterOptions);
+app.method('passkey-register-verify', passkeyRegisterVerify);
+app.method('passkey-login-options', passkeyLoginOptions);
+app.method('passkey-login-verify', passkeyLoginVerify);
+app.method('passkey-list', passkeyList);
+app.method('passkey-rename', passkeyRename);
+app.method('passkey-delete', passkeyDelete);
+app.method('passkey-invite', passkeyInvite);
 
 async function didBootstrap() {
   return Boolean(await asyncStorage.getItem('did-bootstrap'));
@@ -358,7 +383,11 @@ async function getOpenIdConfig({ password }: { password: string }) {
   }
 }
 
-async function enablePassword(passwordConfig: { password: string }) {
+async function enablePassword(passwordConfig: {
+  password: string;
+  /** Which named-user method is being switched off. Defaults to OpenID. */
+  from?: 'openid' | 'passkey';
+}) {
   try {
     const userToken = await asyncStorage.getItem('user-token');
 
@@ -371,7 +400,8 @@ async function enablePassword(passwordConfig: { password: string }) {
       throw new Error('No sync server configured.');
     }
 
-    await post(serverConfig.BASE_SERVER + '/openid/disable', passwordConfig, {
+    const { from = 'openid', ...body } = passwordConfig;
+    await post(serverConfig.BASE_SERVER + `/${from}/disable`, body, {
       'X-ACTUAL-TOKEN': userToken,
     });
   } catch (err) {
@@ -384,4 +414,193 @@ async function enablePassword(passwordConfig: { password: string }) {
     throw err;
   }
   return {};
+}
+
+// ------------------------------------------------------------------ passkeys
+//
+// Every ceremony is two calls. The options call returns JSON that the UI hands
+// to the browser's WebAuthn API, and the verify call returns the authenticator's
+// answer to the server. The browser step cannot happen here: this code runs in
+// a worker, which has no navigator.credentials, and WebAuthn needs a user
+// gesture in the window anyway. So these handlers only move JSON.
+
+type PasskeyError = { error: string };
+
+async function passkeyPost<T>(
+  path: string,
+  body: unknown,
+  { authenticated = false }: { authenticated?: boolean } = {},
+): Promise<T | PasskeyError> {
+  try {
+    const serverConfig = getServer();
+    if (!serverConfig) {
+      throw new Error('No sync server configured.');
+    }
+
+    const headers: Record<string, string> = {};
+    if (authenticated) {
+      const userToken = await asyncStorage.getItem('user-token');
+      if (!userToken) {
+        return { error: 'unauthorized' };
+      }
+      headers['X-ACTUAL-TOKEN'] = userToken;
+    }
+
+    return (await post(
+      serverConfig.BASE_SERVER + '/passkey' + path,
+      body,
+      headers,
+    )) as T;
+  } catch (err) {
+    if (err instanceof PostError) {
+      return { error: err.reason || 'network-failure' };
+    }
+    throw err;
+  }
+}
+
+/** For the verbs `post()` does not cover. Same response envelope. */
+async function passkeyRequest<T>(
+  method: 'GET' | 'PATCH' | 'DELETE',
+  path: string,
+  body?: unknown,
+): Promise<T | PasskeyError> {
+  const serverConfig = getServer();
+  if (!serverConfig) {
+    throw new Error('No sync server configured.');
+  }
+
+  const userToken = await asyncStorage.getItem('user-token');
+  if (!userToken) {
+    return { error: 'unauthorized' };
+  }
+
+  let json: { status: string; reason?: string; data?: T };
+  try {
+    const res = await fetch(serverConfig.BASE_SERVER + '/passkey' + path, {
+      method,
+      headers: {
+        'X-ACTUAL-TOKEN': userToken,
+        ...(body !== undefined ? { 'Content-Type': 'application/json' } : {}),
+      },
+      body: body !== undefined ? JSON.stringify(body) : undefined,
+    });
+    json = await res.json();
+  } catch (err) {
+    logger.log(err);
+    return { error: 'network-failure' };
+  }
+
+  if (json.status !== 'ok') {
+    return { error: json.reason ?? 'internal' };
+  }
+  return json.data as T;
+}
+
+async function enablePasskey(passkeyConfig: { passkey: PasskeyConfig }) {
+  const result = await passkeyPost<Record<string, never>>(
+    '/enable',
+    passkeyConfig,
+    { authenticated: true },
+  );
+  return 'error' in result ? { error: result.error } : {};
+}
+
+/**
+ * Who is registering is decided by what `subject` carries: the server password
+ * (the very first passkey, which creates the owner), an enrolment token (an
+ * invited person), or nothing, meaning the signed-in user adding a device.
+ */
+async function passkeyRegisterOptions(subject: PasskeyRegistrationSubject) {
+  const isSessionMode =
+    !('password' in subject) && !('enrolmentToken' in subject);
+  return passkeyPost<{ challengeId: string; options: PasskeyCeremonyOptions }>(
+    '/register/options',
+    subject,
+    { authenticated: isSessionMode },
+  );
+}
+
+async function passkeyRegisterVerify(
+  input: PasskeyRegistrationSubject & {
+    challengeId: string;
+    response: PasskeyCeremonyResponse;
+    name?: string;
+  },
+) {
+  const isSessionMode = !('password' in input) && !('enrolmentToken' in input);
+  const result = await passkeyPost<{
+    token: string | null;
+    credentialId: string;
+  }>('/register/verify', input, { authenticated: isSessionMode });
+
+  if ('error' in result) {
+    return { error: result.error };
+  }
+  if (result.token) {
+    await asyncStorage.setItem('user-token', result.token);
+  }
+  return { credentialId: result.credentialId };
+}
+
+async function passkeyLoginOptions() {
+  return passkeyPost<{ challengeId: string; options: PasskeyCeremonyOptions }>(
+    '/login/options',
+    {},
+  );
+}
+
+async function passkeyLoginVerify(input: {
+  challengeId: string;
+  response: PasskeyCeremonyResponse;
+}) {
+  const result = await passkeyPost<{ token: string }>('/login/verify', input);
+  if ('error' in result) {
+    return { error: result.error };
+  }
+  if (!result.token) {
+    throw new Error('login: User token not set');
+  }
+  await asyncStorage.setItem('user-token', result.token);
+  return {};
+}
+
+async function passkeyList({ userId }: { userId?: string } = {}) {
+  const query = userId ? `?userId=${encodeURIComponent(userId)}` : '';
+  const result = await passkeyRequest<PasskeyCredentialSummary[]>(
+    'GET',
+    `/credentials${query}`,
+  );
+  return 'error' in result ? result : { credentials: result };
+}
+
+async function passkeyRename({
+  credentialId,
+  name,
+}: {
+  credentialId: string;
+  name: string;
+}) {
+  const result = await passkeyRequest<Record<string, never>>(
+    'PATCH',
+    `/credentials/${encodeURIComponent(credentialId)}`,
+    { name },
+  );
+  return 'error' in result ? { error: result.error } : {};
+}
+
+async function passkeyDelete({ credentialId }: { credentialId: string }) {
+  const result = await passkeyRequest<Record<string, never>>(
+    'DELETE',
+    `/credentials/${encodeURIComponent(credentialId)}`,
+  );
+  return 'error' in result ? { error: result.error } : {};
+}
+
+async function passkeyInvite({ userId }: { userId: string }) {
+  return passkeyPost<{ token: string; expiresAt: number; url: string | null }>(
+    '/invite',
+    { userId },
+    { authenticated: true },
+  );
 }

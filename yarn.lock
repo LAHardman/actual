@@ -253,6 +253,7 @@ __metadata:
     "@reduxjs/toolkit": "npm:^2.12.0"
     "@rolldown/plugin-babel": "npm:~0.2.3"
     "@rollup/plugin-inject": "npm:^5.0.5"
+    "@simplewebauthn/browser": "npm:^13.3.0"
     "@tanstack/react-query": "npm:^5.101.2"
     "@testing-library/dom": "npm:10.4.1"
     "@testing-library/jest-dom": "npm:^6.9.1"
@@ -7731,6 +7732,13 @@ __metadata:
   version: 2.0.0
   resolution: "@sideway/pinpoint@npm:2.0.0"
   checksum: 10/1ed21800128b2b23280ba4c9db26c8ff6142b97a8683f17639fd7f2128aa09046461574800b30fb407afc5b663c2331795ccf3b654d4b38fa096e41a5c786bf8
+  languageName: node
+  linkType: hard
+
+"@simplewebauthn/browser@npm:^13.3.0":
+  version: 13.3.0
+  resolution: "@simplewebauthn/browser@npm:13.3.0"
+  checksum: 10/1490c566017145f705e06f7f4d08822d19a616ce1ce8a152fcad1e4d88b418df3a4fa5c1f24e4ce142f41079ecbe3f9b77f3f3889e0cc1a4655e6f2ef2756228
   languageName: node
   linkType: hard
 

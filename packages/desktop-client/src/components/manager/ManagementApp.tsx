@@ -33,6 +33,7 @@ import { ChangePassword } from './subscribe/ChangePassword';
 import { Error } from './subscribe/Error';
 import { Login } from './subscribe/Login';
 import { OpenIdCallback } from './subscribe/OpenIdCallback';
+import { PasskeyEnroll } from './subscribe/PasskeyEnroll';
 import { WelcomeScreen } from './WelcomeScreen';
 
 function Version() {
@@ -187,6 +188,7 @@ export function ManagementApp() {
             <Routes>
               <Route path="/login" element={<Login />} />
               <Route path="/openid-cb" element={<OpenIdCallback />} />
+              <Route path="/passkey-enroll" element={<PasskeyEnroll />} />
               <Route path="/error" element={<Error />} />
               <Route path="/config-server" element={<ConfigServer />} />
               <Route path="/bootstrap" element={<Bootstrap />} />

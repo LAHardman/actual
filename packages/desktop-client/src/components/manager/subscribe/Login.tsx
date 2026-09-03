@@ -26,9 +26,11 @@ import {
 import { useNavigate } from '#hooks/useNavigate';
 import { useDispatch } from '#redux';
 import { loggedIn } from '#users/usersSlice';
+import { getPasskeyErrors } from '#util/error';
 
 import { Title, useBootstrapped } from './common';
 import { OpenIdForm } from './OpenIdForm';
+import { PasskeyLogin } from './PasskeyLogin';
 
 function PasswordLogin({ setError, dispatch }) {
   const [password, setPassword] = useState('');
@@ -346,7 +348,10 @@ export function Login() {
       case 'internal-error':
         return t('Internal error');
       default:
-        return t(`An unknown error occurred: {{error}}`, { error });
+        return (
+          getPasskeyErrors(error) ??
+          t(`An unknown error occurred: {{error}}`, { error })
+        );
     }
   }
 
@@ -379,6 +384,8 @@ export function Login() {
       )}
 
       {method === 'openid' && <OpenIdLogin setError={setError} />}
+
+      {method === 'passkey' && <PasskeyLogin setError={setError} />}
 
       {method === 'header' && <HeaderLogin error={error} />}
 

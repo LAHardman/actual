@@ -260,3 +260,62 @@ export function getOpenIdErrors(reason: string) {
       );
   }
 }
+
+/** Returns null for reasons that are not passkey-related, so callers can fall through. */
+export function getPasskeyErrors(reason: string): string | null {
+  switch (reason) {
+    case 'passkey-cancelled':
+      return t(
+        'The passkey prompt was dismissed. Try again when you are ready.',
+      );
+    case 'passkey-unsupported':
+      return t(
+        'This device or browser cannot use passkeys for this server. Try another browser, or another login method.',
+      );
+    case 'passkey-invalid-domain':
+      return t(
+        'Passkeys for this server only work at the address the server was configured with. Open Actual using that address.',
+      );
+    case 'passkey-already-registered':
+      return t('This device already has a passkey for this server.');
+    case 'passkey-failed':
+    case 'registration-failed':
+    case 'authentication-failed':
+      return t('The passkey could not be verified. Please try again.');
+    case 'passkey-not-configured':
+      return t('Passkeys are not enabled on this server.');
+    case 'invalid-or-expired-challenge':
+      return t('That took too long and the request expired. Please try again.');
+    case 'unknown-credential':
+      return t(
+        'This passkey is not registered on this server. Ask an admin for an invitation to add it.',
+      );
+    case 'already-bootstrapped':
+      return t(
+        'This server already has an owner. Sign in with your passkey, or ask an admin for an invitation.',
+      );
+    case 'user-cant-be-empty':
+      return t('Enter a username.');
+    case 'invalid-enrolment-token':
+      return t('This invitation link is not valid.');
+    case 'enrolment-token-used':
+      return t('This invitation has already been used. Ask for a new one.');
+    case 'enrolment-token-expired':
+      return t('This invitation has expired. Ask for a new one.');
+    case 'user-not-found':
+      return t('This account is disabled or no longer exists.');
+    case 'last-credential':
+      return t(
+        'You cannot remove your last passkey while passkeys are the login method. Add another device first.',
+      );
+    case 'server-hostname-not-https':
+      return t('Passkeys need an https:// server address.');
+    case 'missing-server-hostname':
+    case 'invalid-server-hostname':
+      return t('The server address is not valid.');
+    case 'use-passkey-ceremony':
+      return t('Use the "Sign in with a passkey" button for this server.');
+    default:
+      return null;
+  }
+}

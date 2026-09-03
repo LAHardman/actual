@@ -54,6 +54,7 @@ import { HoldBufferModal } from './modals/HoldBufferModal';
 import { ImportTransactionsModal } from './modals/ImportTransactionsModal';
 import { KeyboardShortcutModal } from './modals/KeyboardShortcutModal';
 import { LoadBackupModal } from './modals/LoadBackupModal';
+import { ManagePasskeysModal } from './modals/ManagePasskeysModal';
 import { ConfirmChangeDocumentDirModal } from './modals/manager/ConfirmChangeDocumentDir';
 import { DeleteFileModal } from './modals/manager/DeleteFileModal';
 import { DuplicateFileModal } from './modals/manager/DuplicateFileModal';
@@ -69,6 +70,7 @@ import { NewCategoryModal } from './modals/NewCategoryModal';
 import { NotesModal } from './modals/NotesModal';
 import { OpenIDEnableModal } from './modals/OpenIDEnableModal';
 import { OutOfSyncMigrationsModal } from './modals/OutOfSyncMigrationsModal';
+import { PasskeyEnableModal } from './modals/PasskeyEnableModal';
 import { PasswordEnableModal } from './modals/PasswordEnableModal';
 import { PayeeAutocompleteModal } from './modals/PayeeAutocompleteModal';
 import { PluggyAiInitialiseModal } from './modals/PluggyAiInitialiseModal';
@@ -430,6 +432,12 @@ export function Modals() {
 
         case 'enable-password-auth':
           return <PasswordEnableModal key={key} {...modal.options} />;
+
+        case 'enable-passkey':
+          return <PasskeyEnableModal key={key} {...modal.options} />;
+
+        case 'manage-passkeys':
+          return <ManagePasskeysModal key={key} />;
 
         default:
           throw new Error('Unknown modal');

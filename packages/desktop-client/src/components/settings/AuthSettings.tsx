@@ -22,75 +22,89 @@ export function AuthSettings() {
   const dispatch = useDispatch();
   const serverStatus = useSyncServerStatus();
 
-  // Hide the OpenID block entirely when no server is configured
+  // Hide the block entirely when no server is configured
   if (serverStatus === 'no-server') {
     return null;
   }
 
   const isOffline = serverStatus === 'offline';
 
+  const methodLabel =
+    loginMethod === 'openid'
+      ? t('OpenID')
+      : loginMethod === 'passkey'
+        ? t('Passkeys')
+        : t('Server password');
+
   return (
     <Setting
       primaryAction={
         <>
           <label>
-            <Trans>OpenID is</Trans>{' '}
-            <label style={{ fontWeight: 'bold' }}>
-              {loginMethod === 'openid' ? t('enabled') : t('disabled')}
-            </label>
+            <Trans>Login method:</Trans>{' '}
+            <label style={{ fontWeight: 'bold' }}>{methodLabel}</label>
           </label>
           {isOffline && (
             <View>
               <Text style={{ paddingTop: 5, color: theme.warningText }}>
                 <Trans>
-                  Server is offline. OpenID settings are unavailable.
+                  Server is offline. Login settings are unavailable.
                 </Trans>
               </Text>
             </View>
           )}
+
           {loginMethod === 'password' && (
             <>
-              <Button
-                id="start-using"
-                style={{
-                  marginTop: '10px',
-                }}
-                variant="normal"
-                isDisabled={isOffline}
-                onPress={() =>
-                  dispatch(
-                    pushModal({
-                      modal: {
-                        name: 'enable-openid',
-                        options: {},
-                      },
-                    }),
-                  )
-                }
-              >
-                <Trans>Start using OpenID</Trans>
-              </Button>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <Button
+                  id="start-using"
+                  variant="normal"
+                  isDisabled={isOffline}
+                  onPress={() =>
+                    dispatch(
+                      pushModal({
+                        modal: { name: 'enable-openid', options: {} },
+                      }),
+                    )
+                  }
+                >
+                  <Trans>Start using OpenID</Trans>
+                </Button>
+                <Button
+                  id="start-using-passkeys"
+                  variant="normal"
+                  isDisabled={isOffline}
+                  onPress={() =>
+                    dispatch(
+                      pushModal({
+                        modal: { name: 'enable-passkey', options: {} },
+                      }),
+                    )
+                  }
+                >
+                  <Trans>Start using passkeys</Trans>
+                </Button>
+              </View>
               <Label
                 style={{ paddingTop: 5 }}
-                title={t('OpenID is required to enable multi-user mode.')}
+                title={t(
+                  'OpenID or passkeys are required to enable multi-user mode.',
+                )}
               />
             </>
           )}
-          {loginMethod !== 'password' && (
+
+          {loginMethod === 'openid' && (
             <>
               <Button
-                style={{
-                  marginTop: '10px',
-                }}
+                style={{ marginTop: '10px' }}
                 variant="normal"
                 isDisabled={isOffline}
                 onPress={() =>
                   dispatch(
                     pushModal({
-                      modal: {
-                        name: 'enable-password-auth',
-                        options: {},
-                      },
+                      modal: { name: 'enable-password-auth', options: {} },
                     }),
                   )
                 }
@@ -101,6 +115,46 @@ export function AuthSettings() {
                 <Text style={{ paddingTop: 5, color: theme.errorText }}>
                   <Trans>
                     Disabling OpenID will deactivate multi-user mode.
+                  </Trans>
+                </Text>
+              )}
+            </>
+          )}
+
+          {loginMethod === 'passkey' && (
+            <>
+              <View style={{ flexDirection: 'row', gap: 10, marginTop: 10 }}>
+                <Button
+                  variant="normal"
+                  isDisabled={isOffline}
+                  onPress={() =>
+                    dispatch(
+                      pushModal({
+                        modal: { name: 'manage-passkeys', options: {} },
+                      }),
+                    )
+                  }
+                >
+                  <Trans>Manage passkeys</Trans>
+                </Button>
+                <Button
+                  variant="normal"
+                  isDisabled={isOffline}
+                  onPress={() =>
+                    dispatch(
+                      pushModal({
+                        modal: { name: 'enable-password-auth', options: {} },
+                      }),
+                    )
+                  }
+                >
+                  <Trans>Disable passkeys</Trans>
+                </Button>
+              </View>
+              {multiuserEnabled && (
+                <Text style={{ paddingTop: 5, color: theme.errorText }}>
+                  <Trans>
+                    Disabling passkeys will deactivate multi-user mode.
                   </Trans>
                 </Text>
               )}

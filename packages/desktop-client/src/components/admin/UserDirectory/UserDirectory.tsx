@@ -16,11 +16,13 @@ import type { NewUserEntity, UserEntity } from '@actual-app/core/types/models';
 import { InfiniteScrollWrapper } from '#components/common/InfiniteScrollWrapper';
 import { Link } from '#components/common/Link';
 import { Search } from '#components/common/Search';
+import { useLoginMethod } from '#components/ServerContext';
 import { SelectedProvider, useSelected } from '#hooks/useSelected';
 import { pushModal } from '#modals/modalsSlice';
 import { addNotification } from '#notifications/notificationsSlice';
 import { useDispatch } from '#redux';
 import { signOut } from '#users/usersSlice';
+import { getPasskeyErrors } from '#util/error';
 
 import { UserDirectoryHeader } from './UserDirectoryHeader';
 import { UserDirectoryRow } from './UserDirectoryRow';
@@ -77,6 +79,7 @@ function UserDirectoryContent({ isModal }: ManageUserDirectoryContentProps) {
   const [page, setPage] = useState(0);
   const [filter, setFilter] = useState('');
   const dispatch = useDispatch();
+  const loginMethod = useLoginMethod();
 
   const { getUserDirectoryErrors } = useGetUserDirectoryErrors();
 
@@ -226,6 +229,57 @@ function UserDirectoryContent({ isModal }: ManageUserDirectoryContentProps) {
     );
   }
 
+  // Passkey mode only: an enrolment link is how a person creates their first
+  // passkey, so it is the passkey equivalent of handing someone a password.
+  const onInviteUser = useCallback(
+    async (user: UserEntity) => {
+      const result = await send('passkey-invite', { userId: user.id });
+      if ('error' in result) {
+        dispatch(
+          addNotification({
+            notification: {
+              type: 'error',
+              title: t('Could not create an invitation'),
+              message: getPasskeyErrors(result.error) ?? result.error,
+            },
+          }),
+        );
+        return;
+      }
+
+      const link = result.url ?? result.token;
+      let copied = false;
+      try {
+        await navigator.clipboard.writeText(link);
+        copied = true;
+      } catch {
+        copied = false;
+      }
+
+      dispatch(
+        addNotification({
+          notification: {
+            type: 'message',
+            title: copied
+              ? t('Invitation link copied for {{name}}', {
+                  name: user.displayName || user.userName,
+                })
+              : t('Invitation link for {{name}}', {
+                  name: user.displayName || user.userName,
+                }),
+            message: copied
+              ? t(
+                  'Send it to them to open on the device they will sign in from. It works once and expires in 24 hours.',
+                )
+              : link,
+            sticky: !copied,
+          },
+        }),
+      );
+    },
+    [dispatch, t],
+  );
+
   const onHover = useCallback(id => {
     setHoveredUser(id);
   }, []);
@@ -283,6 +337,9 @@ function UserDirectoryContent({ isModal }: ManageUserDirectoryContentProps) {
                 hoveredUser={hoveredUser}
                 onHover={onHover}
                 onEditUser={onEditUser}
+                onInviteUser={
+                  loginMethod === 'passkey' ? onInviteUser : undefined
+                }
               />
             )}
           </InfiniteScrollWrapper>
@@ -352,6 +409,7 @@ type UsersListProps = {
   hoveredUser?: string;
   onHover?: (id: string | null) => void;
   onEditUser?: (rule: UserEntity) => void;
+  onInviteUser?: (user: UserEntity) => void;
 };
 
 function UsersList({
@@ -360,6 +418,7 @@ function UsersList({
   hoveredUser,
   onHover,
   onEditUser,
+  onInviteUser,
 }: UsersListProps) {
   if (users.length === 0) {
     return null;
@@ -379,6 +438,7 @@ function UsersList({
             selected={selected}
             onHover={onHover}
             onEditUser={onEditUser}
+            onInviteUser={onInviteUser}
           />
         );
       })}

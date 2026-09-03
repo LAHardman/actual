@@ -646,6 +646,16 @@ export type Modal =
       };
     }
   | {
+      name: 'enable-passkey';
+      options: {
+        onSave?: () => void;
+      };
+    }
+  | {
+      name: 'manage-passkeys';
+      options: Record<string, never>;
+    }
+  | {
       name: 'confirm-unlink-account';
       options: {
         accountName: string;

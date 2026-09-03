@@ -18,10 +18,19 @@ type UserDirectoryProps = {
   selected?: boolean;
   onHover?: (id: string | null) => void;
   onEditUser?: (user: UserEntity) => void;
+  /** Present only when passkeys are the login method. */
+  onInviteUser?: (user: UserEntity) => void;
 };
 
 export const UserDirectoryRow = memo(
-  ({ user, hovered, selected, onHover, onEditUser }: UserDirectoryProps) => {
+  ({
+    user,
+    hovered,
+    selected,
+    onHover,
+    onEditUser,
+    onInviteUser,
+  }: UserDirectoryProps) => {
     const dispatchSelected = useSelectedDispatch();
     const borderColor = selected ? theme.tableBorderSelected : 'none';
     const backgroundFocus = hovered;
@@ -125,17 +134,28 @@ export const UserDirectoryRow = memo(
 
         <Cell
           name="edit"
-          width={80}
+          width={150}
           plain
           style={{ padding: 0, paddingLeft: 5 }}
         >
-          <Button
-            style={{ margin: 4, fontSize: 14, color: theme.pageTextLink }}
-            variant="bare"
-            onPress={() => onEditUser?.(user)}
-          >
-            <Trans>Edit</Trans>
-          </Button>
+          <View style={{ flexDirection: 'row' }}>
+            <Button
+              style={{ margin: 4, fontSize: 14, color: theme.pageTextLink }}
+              variant="bare"
+              onPress={() => onEditUser?.(user)}
+            >
+              <Trans>Edit</Trans>
+            </Button>
+            {onInviteUser && user.enabled && (
+              <Button
+                style={{ margin: 4, fontSize: 14, color: theme.pageTextLink }}
+                variant="bare"
+                onPress={() => onInviteUser(user)}
+              >
+                <Trans>Invite</Trans>
+              </Button>
+            )}
+          </View>
         </Cell>
       </Row>
     );

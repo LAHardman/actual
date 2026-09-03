@@ -58,7 +58,9 @@ export const useSetServerURL = () => useContext(ServerContext).setURL;
 export const useMultiuserEnabled = () => {
   const { multiuserEnabled } = useContext(ServerContext);
   const loginMethod = useLoginMethod();
-  return multiuserEnabled && loginMethod === 'openid';
+  return (
+    multiuserEnabled && (loginMethod === 'openid' || loginMethod === 'passkey')
+  );
 };
 
 export const useLoginMethod = () => {

@@ -25,7 +25,7 @@ export function UserDirectoryHeader() {
       <Cell value={t('Role')} width={100} />
       <Cell value={t('Enabled')} width={100} />
       <Cell value={t('Server Owner')} width={100} />
-      <Cell value="" width={80} />
+      <Cell value="" width={150} />
     </TableHeader>
   );
 }
